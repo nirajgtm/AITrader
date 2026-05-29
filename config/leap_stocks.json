@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "description": "Single-stock LEAP candidates scanned each morning brief. Add/remove tickers here; brief.py reads this automatically.",
+  "stocks": [
+    {"ticker": "NVDA",  "dte_days": 365, "delta_target": 0.65, "rsi_extended_skip": 72, "iv_mult": 2.0},
+    {"ticker": "AVGO",  "dte_days": 365, "delta_target": 0.65, "rsi_extended_skip": 72, "iv_mult": 1.5},
+    {"ticker": "ARM",   "dte_days": 365, "delta_target": 0.60, "rsi_extended_skip": 72, "iv_mult": 2.5},
+    {"ticker": "GOOGL", "dte_days": 365, "delta_target": 0.65, "rsi_extended_skip": 72, "iv_mult": 1.3},
+    {"ticker": "AMZN",  "dte_days": 365, "delta_target": 0.65, "rsi_extended_skip": 72, "iv_mult": 1.4},
+    {"ticker": "MSFT",  "dte_days": 365, "delta_target": 0.65, "rsi_extended_skip": 72, "iv_mult": 1.3},
+    {"ticker": "AAPL",  "dte_days": 365, "delta_target": 0.65, "rsi_extended_skip": 72, "iv_mult": 1.2},
+    {"ticker": "APP",   "dte_days": 365, "delta_target": 0.60, "rsi_extended_skip": 72, "iv_mult": 2.2},
+    {"ticker": "RGTI",  "dte_days": 365, "delta_target": 0.55, "rsi_extended_skip": 75, "iv_mult": 3.0},
+    {"ticker": "RKLB",  "dte_days": 365, "delta_target": 0.55, "rsi_extended_skip": 75, "iv_mult": 2.8}
+  ]
+}

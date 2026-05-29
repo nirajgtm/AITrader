@@ -1,0 +1,29 @@
+# Secrets — never commit
+.env
+*.env
+!.env.example
+
+# Third-party PII
+broadcast_recipients.json
+
+# Operational / personal runtime state (ledger, portfolio, P&L, logs, cache)
+state/
+
+# Personal knowledge state (per-machine learning logs; each install regenerates its own
+# as the mind learns, and these legitimately reference real local activity / holdings / P&L)
+knowledge/amendments.md
+knowledge/market_regime.md
+knowledge/mistakes.md
+knowledge/behavioral_audit.md
+
+# Autonomous bot live config (contains account balance; use config.json.example as template)
+public_com_autonomous_trading/config.json
+
+# Python
+scripts/.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store

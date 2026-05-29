@@ -1,0 +1,26 @@
+{
+  "_meta": {
+    "purpose": "Roster of the mind's subagents. Each subagent's brief is its spec in this directory. every_run fires on every run; debate_panel voices are convened only on a contested call (run cycle step 1e), so on a quiet run none of them fire; on_demand specialists are convened when their invoke_when trigger hits (for example Ideas on a quiet or off-hours run). The mind creates a subagent when a capability is repeatedly needed and retires idle ones. last_used is a hint for spotting idle specialists; the janitor flags ones gone idle too long."
+  },
+  "every_run": [
+    {"name": "Janitor", "spec": "janitor.md", "role": "memory and agenda housekeeping; flags silent waits, hardcoded personalization in shipped files, and dangling subagents", "when": "end of every run", "convened_by": "trader-autonomous skill", "model": "sonnet"},
+    {"name": "ConvictionWriter", "spec": "conviction_writer.md", "role": "updates the conviction board from the mind's research brief -- adds/updates entries for conviction-worthy names this run, keeps instrument type and structure freeform, never rebuilds the whole board", "when": "each substantive run, after research (steps 2b/3), before ShadowTrader", "convened_by": "trader-autonomous skill", "model": "sonnet", "last_used": null},
+    {"name": "ShadowTrader", "spec": "shadow_trader.md", "role": "autonomously paper-trades the conviction ideas (open/close SHADOW trades on its own analysis via shadow_trades.py); never touches the real book or guards", "when": "each substantive run, after ConvictionWriter", "convened_by": "trader-autonomous skill", "model": "sonnet", "last_used": "2026-05-26"}
+  ],
+  "debate_panel": [
+    {"name": "Strategist", "spec": "strategist.md", "role": "argue the primary thesis and the cleanest path to 2R", "when": "contested call (run cycle step 1e)", "convened_by": "trader-autonomous skill", "model": "default"},
+    {"name": "Historian", "spec": "historian.md", "role": "what this name, setup, and regime did before", "when": "contested call (run cycle step 1e)", "convened_by": "trader-autonomous skill", "model": "default"},
+    {"name": "Risk Officer", "spec": "risk_officer.md", "role": "downside, stop, correlation, what kills it", "when": "contested call (run cycle step 1e)", "convened_by": "trader-autonomous skill", "model": "default"},
+    {"name": "Skeptic", "spec": "skeptic.md", "role": "steelman the bear, name the catch everyone ignores", "when": "contested call (run cycle step 1e)", "convened_by": "trader-autonomous skill", "model": "default"},
+    {"name": "Opportunist", "spec": "opportunist.md", "role": "biggest honest upside, the case to size up", "when": "contested call (run cycle step 1e)", "convened_by": "trader-autonomous skill", "model": "default"},
+    {"name": "Behaviorist", "spec": "behaviorist.md", "role": "what bias is in me right now", "when": "contested call (run cycle step 1e)", "convened_by": "trader-autonomous skill", "model": "default"}
+  ],
+  "on_demand": [
+    {"name": "Editor", "spec": "editor.md", "role": "the only writer to tracked/shareable files; implements the mind's edit plan and gates it for share-safety (depersonalize, no secrets, safe to share)", "status": "active", "model": "default", "invoke_when": "ANY edit to a tracked (non-gitignored) file; the mind delegates the edit plan. Gitignored runtime state under state/ is exempt and the mind edits it directly", "created": "2026-05-25", "last_used": "2026-05-25"},
+    {"name": "Coach", "spec": "coach.md", "role": "challenge the owner and the setup", "status": "active", "model": "default", "invoke_when": "off-hours, when there is a real blind spot or setup gap worth one sharp provocation", "created": "2026-05-24", "last_used": null},
+    {"name": "Analyst", "spec": "analyst.md", "role": "deep fundamental and technical read on one name or setup", "status": "active", "model": "default", "invoke_when": "a candidate needs more than the inline deep-dive", "created": "2026-05-24", "last_used": null},
+    {"name": "News", "spec": "news.md", "role": "pull and synthesize news and catalysts", "status": "active", "model": "default", "invoke_when": "a name or the tape is moving and I need to know why", "created": "2026-05-24", "last_used": null},    {"name": "MarketResearch", "spec": "market_research.md", "role": "sector, regime, flow, and structural research", "status": "active", "model": "default", "invoke_when": "updating the worldview or sizing a macro or regime question", "created": "2026-05-24", "last_used": null},
+    {"name": "CaseBuilder", "spec": "case_builder.md", "role": "build the for OR against case, briefed blind, one side", "status": "active", "model": "default", "invoke_when": "a thesis is contested and I want a clean one-sided case to weigh", "created": "2026-05-24", "last_used": null},
+    {"name": "DomainExpert", "spec": "domain_expert.md", "role": "template to spin up an expert on a specific sector or instrument", "status": "active", "model": "default", "invoke_when": "I need depth on a domain I am thin on (semis, biotech, rates, a specific coin)", "created": "2026-05-24", "last_used": null}
+  ]
+}

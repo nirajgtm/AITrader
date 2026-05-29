@@ -1,0 +1,42 @@
+{
+  "enabled": false,
+  "account_id": "",
+  "starting_equity_usd": 0.0,
+  "instruments": ["EQUITY", "CRYPTO"],
+  "restricted_tickers": [],
+  "_restricted_tickers_comment": "Ticker symbols the owner may never trade in any form (e.g. an employer's stock under a trading policy). Per-machine; leave empty if none. The autonomous run reads this into its BANNED set and blocks these as candidates.",
+  "risk": {
+    "max_position_usd": 250.00,
+    "min_position_usd": 50.00,
+    "max_open_positions": 4,
+    "kill_switch_drawdown_usd": 200.00,
+    "require_stop_loss": true,
+    "max_stop_loss_pct": 15.0,
+    "stop_limit_offset_pct": 0.5
+  },
+  "execution": {
+    "preflight_required": true,
+    "order_type": "LIMIT",
+    "time_in_force": "DAY",
+    "limit_slippage_pct": 0.3
+  },
+  "signal": {
+    "require_revalidation_before_buy": true,
+    "min_revalidation_quote_age_sec": 120
+  },
+  "crypto": {
+    "enabled": true,
+    "universe": ["BTC", "ETH", "SOL", "DOGE", "AVAX", "LINK", "LTC", "XRP"],
+    "max_position_usd": 150.00,
+    "min_position_usd": 25.00,
+    "max_open_positions": 2,
+    "stop_atr_mult": 1.5,
+    "target_atr_mult": 3.0,
+    "max_stop_loss_pct": 15.0,
+    "max_rsi_entry": 72.0,
+    "min_rsi_entry": 40.0,
+    "_comment": "Crypto trades 24/7 on public.com. Smaller cap than equities (2-4x vol + software-only stop checked each run, so overnight gaps can overshoot). Stop = entry - stop_atr_mult*ATR, capped at max_stop_loss_pct. Target = stop_atr_mult+target_atr_mult R. Entry RSI band avoids chasing (>max) and falling knives unless mean-revert."
+  },
+  "_comment": "Copy to config.json and fill in account_id and starting_equity_usd. The RULES that read these live in guards.py / settlement.py (code, not prose). enabled=false means disarmed: the system reports what it WOULD do but places no orders. Flip to true only after reviewing a few dry-run cycles.",
+  "_governance": "The mind self-applies and logs non-guardrail changes on its own (see SELF_MAINTENANCE.md). The risk block, the crypto caps, enabled (arming), the temperament dials, and the user directives are PROTECTED: the mind changes them ONLY via an approved Decisions-tab escalation that the next run implements."
+}
