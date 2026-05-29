@@ -3,6 +3,9 @@
 *.env
 !.env.example
 
+# Local push tooling (rule, PII-check + push scripts; may hardcode owner data). NEVER commit.
+push_local/
+
 # Third-party PII
 broadcast_recipients.json
 

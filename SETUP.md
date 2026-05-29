@@ -39,6 +39,8 @@ none of these exist yet. You will create each one during setup by asking the use
 | `public_com_autonomous_trading/state/temperament.json` | Bot's tunable temperament (persona dials) | Auto-defaults from code; created when you save on the Controls tab |
 | `public_com_autonomous_trading/state/mind/` | The bot's MIND: `identity.md` (self-model), `memory/` (six indexed conviction buckets + `index.json`), `agenda.json` (open thoughts + held tensions), `monologue/` (per-run ruminations), `directive.json` (the standing directive, set via the mind, no longer a Controls form), `controls_seen.json` (control-change diff), `playbook.md` (the live mind-view the dashboard shows) | Initialized in Phase 2, Step 10: seed `identity.md` from the committed `identity.md.example`; the rest self-create |
 | `public_com_autonomous_trading/state/mind/agent_controls.json` (+ `agent_runtime.json`, `install_queue.json`, `installed_plugins.json`) | Agent controls: per-agent enable/disable + cadence (dashboard-written), last-convened runtime (mind-written), and the marketplace install queue + installed-plugin list | Auto-create empty: `{"agents":{}}`, `{"agents":{}}`, `{"queue":[]}`, `{"plugins":[]}` |
+| `knowledge/behavioral_audit.md`, `mistakes.md`, `amendments.md`, `market_regime.md` | Per-machine learning logs: behavioral audits, loss postmortems, CONSTITUTION amendments, regime snapshots. May reference real holdings/P&L. | Gitignored. NOT seeded — the skill/mind creates each on demand as it learns, so a fresh install correctly starts without them. |
+| `push_local/` | LOCAL push toolkit: `RULE.md`, `pii_check.sh` (pre-push PII gate), `push.sh`, `install.sh`. May hardcode owner data (remote URL, identifiers). | Gitignored, NEVER committed. Owner-only and not needed to run the system; copy from another machine and run `bash push_local/install.sh`. |
 
 ---
 
@@ -275,6 +277,25 @@ What it does: clean stock price data and news, alternate to yfinance.
 Sign up (free): https://www.tiingo.com/account/api/token — 50 req/hr free.
 
 > "Paste your Tiingo API key (or `skip`):"
+
+---
+
+**11. SEC_CONTACT_EMAIL** — REQUIRED for SEC EDGAR (no signup)
+
+What it does: the SEC requires a contact email in the User-Agent header on every EDGAR API call
+(insider filings / Form 4 via `insider.py`). Without it those requests are rejected. It is not a key —
+any valid email you own works.
+
+> "What email should I use for the SEC EDGAR User-Agent header? (any address you own)"
+
+---
+
+**12. MASSIVE_API_KEY** — optional
+
+What it does: residential-proxy / web-unblocking fallback for the few scrapers that hit bot walls.
+Everything it covers has a non-proxy fallback, so this is rarely needed. Sign up: https://massive.com/
+
+> "Paste your Massive API key (or `skip`):"
 
 ---
 
@@ -555,11 +576,18 @@ The gitignore must cover at minimum:
 .env
 *.env
 !.env.example
-state/
+push_local/
 broadcast_recipients.json
+state/
+knowledge/amendments.md
+knowledge/market_regime.md
+knowledge/mistakes.md
+knowledge/behavioral_audit.md
+public_com_autonomous_trading/config.json
 scripts/.venv/
 __pycache__/
 *.pyc
+*.pyo
 .DS_Store
 ```
 
@@ -583,6 +611,8 @@ COINGECKO_DEMO_API_KEY=<value>
 QUIVER_API_KEY=<value>
 MARKETAUX_API_KEY=<value>
 TIINGO_API_KEY=<value>
+SEC_CONTACT_EMAIL=<value>
+MARKET_WATCH_URL=<value, or leave blank>
 ```
 
 After writing:
@@ -678,6 +708,21 @@ placeholder is in `.env.example`).
 DYNAMIC, self-paced `/loop` in a kept-open session (not system cron); they are set up in Step 13.
 The loop takes no fixed interval. The assistant paces each tick by market hours and the live
 situation, stretching to hours when idle and tightening when a position or trigger is active.
+
+**public.com MCP server (optional).** The scripts and the autonomous bot trade through the REST API
+directly (the `.env` keys above), so this is NOT required. It only adds interactive order tools
+(`get_quotes`, `preflight_order`, `place_order`, ...) inside a Claude Code chat. Setup:
+1. Install the server binary `publicdotcom-mcp-server` (per its own distribution) onto `PATH`, or at
+   `~/.local/bin/` (override with `PUBLIC_MCP_BIN`). The launcher `scripts/public_mcp_launch.sh` reads
+   `PUBLIC_BROKER_API` + `PUBLIC_COM_ACCOUNT_ID` from `.env` and exports them as the `PUBLIC_COM_SECRET`
+   / `PUBLIC_COM_ACCOUNT_ID` the server expects (the secret never lands in any MCP config file).
+2. Register it with Claude Code:
+   ```bash
+   claude mcp add public-com -- bash ~/claude-configs/trader/scripts/public_mcp_launch.sh
+   ```
+3. Restart Claude Code; verify with `/mcp` (the `public-com` server should list its tools). If it
+   fails, confirm the binary is on `PATH` and `.env` has a valid `PUBLIC_BROKER_API` +
+   `PUBLIC_COM_ACCOUNT_ID`.
 
 ---
 
@@ -935,6 +980,15 @@ The marketplace repo is public so anonymous reads work, but an authenticated `gh
 `claude plugin marketplace add` / `claude plugin install` reliable and is required for any private
 marketplace. For unattended plugin updates inside the loop, set `GITHUB_TOKEN` (or `GH_TOKEN`) in the
 environment so it does not prompt.
+
+#### 10f. Watchlist sharing (optional)
+
+The Watch tab can share your autonomous watchlist with friends and browse theirs, through a private
+GitHub repo of shared metadata (default `https://github.com/nirajgtm/AiTrader-sharedMetadata`). It is
+access-gated: if your authenticated `gh` can reach that repo, the Watch tab shows a View/Share control
+(default "Only me"); if not, sharing is hidden and nothing leaves your machine. Shared entries are
+scrubbed to a safe allowlist (ticker, thesis, target, stop, trigger) before any push — no sizing,
+account, or owner data. Not required to run the bot.
 
 ---
 
