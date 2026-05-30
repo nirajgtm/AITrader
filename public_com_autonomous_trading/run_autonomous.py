@@ -49,6 +49,7 @@ import agenda                    # noqa: E402  (open thought queue + held tensio
 import instructions              # noqa: E402  (the user's instruction inbox)
 import shadow_trades             # noqa: E402  (paper conviction book -- marked to market each run)
 import agent_controls            # noqa: E402  (per-agent enable/disable + cadence gate)
+import agent_signals             # noqa: E402  (advisory signal inbox -- names signal agents surface to the mind)
 
 AMENDMENT_RANDOM_FLOOR = 1 / 50  # stochastic trigger when no urgent pattern
 
@@ -348,7 +349,8 @@ def surface_candidates(digest: dict, held: set, settled_cash: float,
         if sym in seen or sym in held:
             continue
         seen.add(sym)
-        blockers = []
+        blockers = []        # HARD: data / compliance -- these veto buyability
+        chase_flags = []     # DISCRETIONARY: "extended" signals the mind weighs and MAY override
         if sym in BANNED:
             blockers.append("restricted ticker (owner trading restriction)")
         m = _price_metrics(sym)
@@ -357,22 +359,32 @@ def surface_candidates(digest: dict, held: set, settled_cash: float,
         fomo = m.get("fomo_ceiling")
         if last is None:
             blockers.append("no price")
+        # FOMO ceiling + RSI-extreme are SUGGESTIONS, not vetoes: a soaring name in a strong
+        # tape can be a legit chase. They flag a name for the mind to deliberate (is momentum
+        # strong? is there a catalyst? can we ride the wave?) and override with logged
+        # justification -- they do NOT block buyability. The hard rails (mandatory stop,
+        # position/drawdown caps, kill-switch, settlement, restricted tickers) run in guards.py
+        # at order time and are NOT overridable.
         if rsi is not None and rsi > 80:
-            blockers.append(f"RSI extreme {rsi}")
+            chase_flags.append(f"RSI extreme {rsi} (chase only with justification)")
         if last is not None and fomo and last > fomo:
-            blockers.append(f"above own FOMO ceiling {fomo}")  # per-name FOMO (the /trader rule)
-        # Market-level FOMO is NOT a block (too blunt; /trader FOMO is per-name).
-        # When SPY itself is >2ATR extended, SIZE-DEMOTE SPY-correlated longs to
-        # half; leave uncorrelated/defensive and mean-revert (RSI<30) names at full
-        # size. Mirrors CONSTITUTION rule 5's correlation/thesis-aware tiers.
+            chase_flags.append(f"above own FOMO ceiling {fomo} (chase only with justification)")
+        strong_uptrend = bool(last and m.get("ma50") and m.get("ma200")
+                              and last > m["ma50"] and last > m["ma200"])
+        # Sizing is a SUGGESTION the mind can override (within the hard position cap). When SPY
+        # itself is >2ATR extended: a mean-revert name (RSI<30) or a strong-uptrend LEADER rides
+        # at full size; only a SPY-correlated LAGGARD (not leading) is suggested down to half.
+        # Lean INTO the leaders of the move, not away from them.
         size_factor = tparams["size_aggression"]  # boldness-driven base (fraction of cap, never > 1.0)
         market_note = ""
         if market_extended[0] and not blockers:
             if rsi is not None and rsi < 30:
-                market_note = "SPY FOMO-extended; name mean-revert (RSI<30) -> full size (allow)"
-            elif sym in SPY_CORRELATED:
+                market_note = "SPY FOMO-extended; name mean-revert (RSI<30) -> full size"
+            elif sym in SPY_CORRELATED and not strong_uptrend:
                 size_factor = round(size_factor * 0.5, 2)
-                market_note = "SPY FOMO-extended + SPY-correlated -> HALF size"
+                market_note = "SPY FOMO-extended + SPY-correlated laggard -> suggest half (override if it is leading)"
+            elif sym in SPY_CORRELATED:
+                market_note = "SPY FOMO-extended but name is a strong-uptrend leader -> full size (ride the leader)"
             else:
                 market_note = "SPY FOMO-extended; name uncorrelated/defensive -> full size"
         score = 0
@@ -385,7 +397,7 @@ def surface_candidates(digest: dict, held: set, settled_cash: float,
         out.append({
             "ticker": sym, "last": last, "rsi14": rsi, "ma50": m.get("ma50"),
             "ma200": m.get("ma200"), "fomo_ceiling": fomo, "atr14": m.get("atr14"),
-            "tech_score": score, "blockers": blockers,
+            "tech_score": score, "blockers": blockers, "chase_flags": chase_flags,
             "size_factor": size_factor, "market_note": market_note,
             "buyable": not blockers and settled_cash >= 50,
             "history_records": len(history.get(sym)),
@@ -751,6 +763,14 @@ def build_context() -> dict:
     (STATE_DIR / "watching.json").write_text(
         json.dumps({"updated": ctx["ts"], "watching": watching}, indent=2))  # for the dashboard
 
+    # Advisory signal inbox -- tickers the mind's signal subagents surfaced since the last
+    # run (step 2b drains these into the candidate universe). ADVISORY ONLY: never auto-adds.
+    # A bad/missing inbox must not break the run.
+    try:
+        ctx["agent_signals"] = agent_signals.pending()
+    except Exception:
+        ctx["agent_signals"] = []
+
     # Mark shadow trades to current prices so the dashboard shows live P&L.
     try:
         st_open = shadow_trades.summary()["open"]
@@ -802,6 +822,12 @@ def build_context() -> dict:
             "max_portfolio_pct": (cfg.get("crypto") or {}).get("max_portfolio_pct")}
 
     ctx["temperament"] = temperament.context_block()
+    # Auto-stamp the deterministic every-run agents now that this is a substantive run; the
+    # mind stamps the on-demand/event agents it convenes itself (see SKILL.md "Agent controls").
+    try:
+        agent_controls.mark_cadence_run()
+    except Exception:
+        pass
     ctx["action"] = "EVALUATE"
     return ctx
 

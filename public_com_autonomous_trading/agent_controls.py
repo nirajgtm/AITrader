@@ -37,6 +37,7 @@ CONTROLS_PATH = _STATE / "agent_controls.json"
 RUNTIME_PATH = _STATE / "agent_runtime.json"
 INSTALL_QUEUE_PATH = _STATE / "install_queue.json"
 INSTALLED_PATH = _STATE / "installed_plugins.json"
+REGISTRY_PATH = _DIR / "subagents" / "registry.json"
 
 # Static per-agent tier and default cadence. Keys match the registry names (snake_case).
 AGENT_TIERS: dict[str, dict] = {
@@ -104,6 +105,33 @@ def _meta_for(key: str) -> dict:
     return AGENT_TIERS.get(key) or _PLUGIN_META
 
 
+def _to_key(name: str) -> str:
+    """Normalize a registry display name to a snake_case agent key.
+    "Risk Officer" -> "risk_officer", "ConvictionWriter" -> "conviction_writer"."""
+    import re
+    s = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", (name or "").strip())
+    return re.sub(r"[\s\-]+", "_", s).lower()
+
+
+def _registry_descriptions() -> dict[str, dict]:
+    """Map agent key -> {"role", "invoke_when"} sourced from subagents/registry.json, across
+    every_run / debate_panel / on_demand. The registry keys agents by display name; we
+    normalize those to the snake_case keys used here. Defensive: a missing/bad registry
+    yields an empty map, so role/invoke_when fall back to "" everywhere."""
+    out: dict[str, dict] = {}
+    reg = _load(REGISTRY_PATH)
+    for section in ("every_run", "debate_panel", "on_demand"):
+        for a in reg.get(section) or []:
+            if not isinstance(a, dict):
+                continue
+            key = _to_key(a.get("name") or "")
+            if not key:
+                continue
+            out[key] = {"role": a.get("role", "") or "",
+                        "invoke_when": a.get("invoke_when") or a.get("when") or ""}
+    return out
+
+
 def _all_keys() -> list[str]:
     """The full agent universe: static core roster plus installed marketplace plugins."""
     keys = list(AGENT_TIERS)
@@ -167,12 +195,31 @@ def mark_convened(key: str, outcome: str = "") -> None:
     _atomic_write(RUNTIME_PATH, data)
 
 
+def mark_cadence_run() -> list[str]:
+    """Auto-stamp the deterministic every-run CORE agents (Janitor, ConvictionWriter,
+    ShadowTrader) at the orientation of a substantive run, so their last_convened is never
+    blank just because the mind skipped the manual stamp. Honors owner overrides: a disabled
+    agent, or one the owner re-cadenced off every_run, is skipped. Plugins and on-demand/event
+    agents are NOT touched here -- the mind stamps those itself when it convenes them. Returns
+    the keys stamped."""
+    stamped = []
+    for key in AGENT_TIERS:
+        if (cadence_for(key) or {}).get("type") == "every_run" and is_enabled(key):
+            mark_convened(key, "auto: substantive run")
+            stamped.append(key)
+    return stamped
+
+
 def status_all(now: datetime | None = None) -> list[dict]:
-    """Per-agent control view, for the dashboard and the run context."""
+    """Per-agent control view, for the dashboard and the run context. Carries each agent's
+    role + invoke_when (from subagents/registry.json) so the mind can see what an agent does
+    and when it fires; installed marketplace plugins not in the registry carry "" for both."""
     now = now or datetime.now(timezone.utc).astimezone()
+    desc = _registry_descriptions()
     out = []
     for key in _all_keys():
         meta = _meta_for(key)
+        d = desc.get(key) or {}
         out.append({
             "key": key,
             "tier": meta.get("tier"),
@@ -181,6 +228,8 @@ def status_all(now: datetime | None = None) -> list[dict]:
             "cadence": cadence_for(key),
             "gates": meta.get("gates", []),
             "tab": meta.get("tab"),
+            "role": d.get("role", ""),
+            "invoke_when": d.get("invoke_when", ""),
             "last_convened": last_convened(key),
             "due": is_due(key, now),
         })
